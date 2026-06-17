@@ -1,0 +1,34 @@
+# Arduino
+*.o
+*.a
+*.so
+*.so.*
+*.dylib
+*.dll
+*.exe
+*.out
+*.com
+
+# Build artifacts
+build/
+dist/
+.pioenvs/
+.piolibdeps/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# PlatformIO
+.pio/
+
+# ArduinoIDE
+libraries/
+
+# Logs
+*.log
+heap_start.map
