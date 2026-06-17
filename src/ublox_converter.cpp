@@ -51,7 +51,11 @@ bool UBLOXConverter::convertGGAToPVT(const GGAData& gga, uint8_t* buffer, int& l
   pvtData.vAcc = accuracy * 2; // Vertical is typically worse
   
   // Time
-  parseTimeString(gga.utcTime, pvtData.hour, pvtData.min, pvtData.sec);
+  uint8_t hour, min, sec;
+  parseTimeString(gga.utcTime, hour, min, sec);
+  pvtData.hour = hour;
+  pvtData.min = min;
+  pvtData.sec = sec;
   
   pvtData.flags = 0x01; // gnssFixOK
   pvtData.valid = 0x07; // Time, date, and fix are valid
@@ -83,9 +87,20 @@ bool UBLOXConverter::convertRMCToPVT(const RMCData& rmc, uint8_t* buffer, int& l
   // Heading
   pvtData.heading = (int32_t)(rmc.trackTrue * 100000.0);
   
-  // Time and date
-  parseTimeString(rmc.utcTime, pvtData.hour, pvtData.min, pvtData.sec);
-  parseDateString(rmc.date, pvtData.year, pvtData.month, pvtData.day);
+  // Time and date - use temporary variables
+  uint8_t hour, min, sec;
+  uint16_t year;
+  uint8_t month, day;
+  
+  parseTimeString(rmc.utcTime, hour, min, sec);
+  parseDateString(rmc.date, year, month, day);
+  
+  pvtData.hour = hour;
+  pvtData.min = min;
+  pvtData.sec = sec;
+  pvtData.year = year;
+  pvtData.month = month;
+  pvtData.day = day;
   
   pvtData.flags = 0x01; // gnssFixOK
   pvtData.valid = 0x07;
