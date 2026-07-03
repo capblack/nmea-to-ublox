@@ -6,30 +6,30 @@
 
 // ===== AUTO-DETECT BOARD =====
 #ifdef ARDUINO_ESP32S3_DEV
-  #define BOARD_NAME "ESP32-S3"
+  #define BOARD_NAME "ESP32-S3 Super Mini"
   #define BOARD_TYPE 1
 #elif defined(ARDUINO_ESP32C3_DEV)
   #define BOARD_NAME "ESP32-C3"
   #define BOARD_TYPE 2
 #else
-  #error "Debes seleccionar: ESP32-S3-DevKit o ESP32-C3-DevKitM-1"
+  #error "Debes seleccionar: ESP32-S3 Dev Module o ESP32-C3-DevKitM-1"
 #endif
 
 // ===== UART Configuration (Auto-detectado por board) =====
 
-#if BOARD_TYPE == 1  // ESP32-S3 Mini/Dev
-  // ESP32-S3 tiene 3 UARTs: UART0 (USB), UART1, UART2
-  #define GPS_RX_PIN    16  // UART1 RX - GPS NMEA input
+#if BOARD_TYPE == 1  // ESP32-S3 Super Mini
+  // ESP32-S3 Super Mini tiene 3 UARTs: UART0 (USB), UART1, UART2
+  #define GPS_RX_PIN    18  // UART1 RX - GPS NMEA input
   #define GPS_TX_PIN    17  // UART1 TX - GPS NMEA output (optional)
   
-  #define INAV_RX_PIN   19  // UART2 RX - iNav feedback (optional)
-  #define INAV_TX_PIN   18  // UART2 TX - iNav u-blox output
+  #define INAV_RX_PIN   15  // UART2 RX - iNav feedback (optional)
+  #define INAV_TX_PIN   16  // UART2 TX - iNav u-blox output
   
   #define GPS_UART      UART_NUM_1   // UART1 for GPS
   #define INAV_UART     UART_NUM_2   // UART2 for iNav
   #define DEBUG_UART    UART_NUM_0   // UART0 for USB debug (automatic)
   
-  #define BOARD_DESCRIPTION "ESP32-S3: 3 UARTs (Debug via USB, GPS, iNav)"
+  #define BOARD_DESCRIPTION "ESP32-S3 Super Mini: 3 UARTs (Debug via USB, GPS, iNav)"
 
 #elif BOARD_TYPE == 2  // ESP32-C3 Dev
   // ESP32-C3 tiene 2 UARTs: UART0 (USB), UART1
@@ -91,12 +91,10 @@
   #define PRINT_BOARD_INFO() \
     Serial.print("Board: "); Serial.println(BOARD_NAME); \
     Serial.print("Type: "); Serial.println(BOARD_DESCRIPTION); \
-    Serial.print("GPS UART: "); Serial.print(GPS_RX_PIN); \
-    Serial.print(" RX, "); Serial.print(GPS_TX_PIN); Serial.println(" TX"); \
-    Serial.print("iNav UART: "); Serial.print(INAV_TX_PIN); \
-    Serial.print(" TX"); \
-    if (BOARD_TYPE == 1) { Serial.print(", "); Serial.print(INAV_RX_PIN); Serial.println(" RX"); } \
-    else { Serial.println(" (SoftwareSerial)"); }
+    Serial.print("GPS UART: GPIO"); Serial.print(GPS_RX_PIN); \
+    Serial.print(" RX, GPIO"); Serial.print(GPS_TX_PIN); Serial.println(" TX"); \
+    Serial.print("iNav UART: GPIO"); Serial.print(INAV_TX_PIN); \
+    Serial.print(" TX, GPIO"); Serial.print(INAV_RX_PIN); Serial.println(" RX");
 #else
   #define PRINT_BOARD_INFO()
 #endif
