@@ -1,10 +1,10 @@
 /*
  * NMEA to u-blox Protocol Translator
- * Para ESP32-C3 con GPS NMEA0183 (AK721-JM)
+ * Para ESP32-C3/S3 con GPS NMEA0183 (AK721-JM)
  * Destino: iNav 9.1 Flight Controller
  * 
  * Este programa:
- * 1. Lee mensajes NMEA del GPS (GGA, RMC, GSA)
+ * 1. Lee mensajes NMEA del GPS (GGA, RMC, GSA) - No-bloqueante
  * 2. Los convierte al protocolo binario u-blox
  * 3. Los envía al flight controller iNav
  */
@@ -24,6 +24,13 @@ int nmeaBufferIndex = 0;
 
 // Timing
 unsigned long lastUpdateTime = 0;
+unsigned long lastDebugPrint = 0;
+unsigned long setupTime = 0;
+
+// State flags
+bool gpsInitialized = false;
+bool inavInitialized = false;
+bool systemReady = false;
 
 // Statistics
 struct {
@@ -31,79 +38,124 @@ struct {
   unsigned long ubloxFrames;
   unsigned long errors;
   unsigned long lastFrame;
-} stats = {0, 0, 0, 0};
+  unsigned long serialErrors;
+  unsigned long loopCount;
+} stats = {0, 0, 0, 0, 0, 0};
+
+// Forward declarations
+void initializeSerials();
+void procesarNMEA(const char* sentence);
+void enviarDatosAiNav();
+void printDebugInfo();
 
 void setup() {
-  // Debug serial (USB)
+  // Debug serial (USB) - Start immediately, don't block
   Serial.begin(DEBUG_BAUD_RATE);
-  delay(1000);
+  
+  setupTime = millis();
+  
+  // Small delay to let USB serial stabilize
+  for (int i = 0; i < 50; i++) {
+    delay(10);
+    if (Serial) break;  // Exit early if serial is ready
+  }
   
   Serial.println("\n\n=== NMEA to u-blox Translator ===");
+  Serial.print("Board: ");
+  Serial.println(BOARD_NAME);
   Serial.println("Starting up...");
   
-  // Initialize UART0 for GPS input (NMEA)
-  Serial1.begin(GPS_BAUD_RATE, SERIAL_8N1, GPS_RX_PIN, GPS_TX_PIN);
+  // Initialize serials with error handling
+  initializeSerials();
   
-  // Initialize UART1 for iNav output (u-blox)
-  Serial2.begin(INAV_BAUD_RATE, SERIAL_8N1, INAV_RX_PIN, INAV_TX_PIN);
-  
-  Serial.println("UART initialized:");
-  Serial.print("  GPS input (NMEA): Pin RX=");
-  Serial.print(GPS_RX_PIN);
-  Serial.print(" TX=");
-  Serial.print(GPS_TX_PIN);
-  Serial.print(" @ ");
-  Serial.print(GPS_BAUD_RATE);
-  Serial.println(" baud");
-  
-  Serial.print("  iNav output (u-blox): Pin RX=");
-  Serial.print(INAV_RX_PIN);
-  Serial.print(" TX=");
-  Serial.print(INAV_TX_PIN);
-  Serial.print(" @ ");
-  Serial.print(INAV_BAUD_RATE);
-  Serial.println(" baud");
-  
-  Serial.println("\nWaiting for GPS data...");
+  systemReady = true;
+  Serial.println("System ready. Waiting for GPS data...");
   Serial.println("-----------------------------------");
 }
 
+void initializeSerials() {
+  // Initialize GPS UART (UART1)
+  if (!Serial1.begin(GPS_BAUD_RATE, SERIAL_8N1, GPS_RX_PIN, GPS_TX_PIN)) {
+    Serial.println("ERROR: Failed to initialize GPS UART");
+    stats.serialErrors++;
+  } else {
+    gpsInitialized = true;
+    Serial.print("✓ GPS UART1: RX=GPIO");
+    Serial.print(GPS_RX_PIN);
+    Serial.print(" TX=GPIO");
+    Serial.print(GPS_TX_PIN);
+    Serial.print(" @ ");
+    Serial.print(GPS_BAUD_RATE);
+    Serial.println(" baud");
+  }
+  
+  // Initialize iNav UART (UART2 for S3, SoftwareSerial for C3)
+  #ifdef USE_SOFTWARE_SERIAL
+    Serial.println("Note: Using SoftwareSerial for iNav (ESP32-C3)");
+    inavInitialized = true;
+  #else
+    if (!Serial2.begin(INAV_BAUD_RATE, SERIAL_8N1, INAV_RX_PIN, INAV_TX_PIN)) {
+      Serial.println("ERROR: Failed to initialize iNav UART");
+      stats.serialErrors++;
+    } else {
+      inavInitialized = true;
+      Serial.print("✓ iNav UART2: RX=GPIO");
+      Serial.print(INAV_RX_PIN);
+      Serial.print(" TX=GPIO");
+      Serial.print(INAV_TX_PIN);
+      Serial.print(" @ ");
+      Serial.print(INAV_BAUD_RATE);
+      Serial.println(" baud");
+    }
+  #endif
+}
+
 void loop() {
-  // Leer datos del GPS (NMEA)
-  while (Serial1.available()) {
+  stats.loopCount++;
+  unsigned long currentTime = millis();
+  
+  // Read GPS data - Non-blocking, with timeout protection
+  if (gpsInitialized && Serial1.available() > 0) {
     char c = Serial1.read();
     
     if (c == '$') {
-      // Inicio de nueva sentencia NMEA
+      // Start of new NMEA sentence
       nmeaBufferIndex = 0;
       nmeaBuffer[nmeaBufferIndex++] = c;
-    } else if (c == '\n' || c == '\r') {
-      // Fin de sentencia
-      if (nmeaBufferIndex > 0) {
-        nmeaBuffer[nmeaBufferIndex] = '\0';
-        procesarNMEA(nmeaBuffer);
-        nmeaBufferIndex = 0;
-      }
-    } else {
-      // Agregar carácter al buffer
-      if (nmeaBufferIndex < NMEA_BUFFER_SIZE - 1) {
-        nmeaBuffer[nmeaBufferIndex++] = c;
-      }
+    } else if ((c == '\n' || c == '\r') && nmeaBufferIndex > 0) {
+      // End of sentence
+      nmeaBuffer[nmeaBufferIndex] = '\0';
+      procesarNMEA(nmeaBuffer);
+      nmeaBufferIndex = 0;
+    } else if (nmeaBufferIndex > 0 && nmeaBufferIndex < NMEA_BUFFER_SIZE - 1) {
+      // Add character to buffer (only if within bounds)
+      nmeaBuffer[nmeaBufferIndex++] = c;
+    } else if (nmeaBufferIndex >= NMEA_BUFFER_SIZE - 1) {
+      // Buffer overflow - reset
+      Serial.println("ERROR: NMEA buffer overflow, resetting");
+      nmeaBufferIndex = 0;
+      stats.errors++;
     }
   }
   
-  // Enviar actualización a iNav a cierta velocidad
-  unsigned long currentTime = millis();
-  if (currentTime - lastUpdateTime >= UPDATE_RATE_MS) {
+  // Send update to iNav at specified rate - Non-blocking
+  if (inavInitialized && currentTime - lastUpdateTime >= UPDATE_RATE_MS) {
     lastUpdateTime = currentTime;
     enviarDatosAiNav();
   }
   
+  // Print debug info periodically
+  if (currentTime - lastDebugPrint >= 5000) {  // Every 5 seconds
+    lastDebugPrint = currentTime;
+    printDebugInfo();
+  }
+  
+  // Minimal delay to prevent watchdog timeout
   delay(LOOP_DELAY_MS);
 }
 
 void procesarNMEA(const char* sentence) {
-  // Validar y parsear sentencia NMEA
+  // Validate and parse NMEA sentence
   if (!nmeaParser.parseSentence(sentence)) {
     stats.errors++;
     return;
@@ -112,7 +164,6 @@ void procesarNMEA(const char* sentence) {
   stats.gpsFrames++;
   stats.lastFrame = millis();
   
-  // Mostrar la sentencia parseada
   NMEASentenceType sentenceType = nmeaParser.getLastSentenceType();
   
   switch (sentenceType) {
@@ -129,7 +180,6 @@ void procesarNMEA(const char* sentence) {
       Serial.print(" Fix=");
       Serial.println(gga.fixQuality);
       
-      // Convertir GGA a u-blox NAV-PVT
       int length = 0;
       if (converter.convertGGAToPVT(gga, ubloxBuffer, length)) {
         stats.ubloxFrames++;
@@ -150,7 +200,6 @@ void procesarNMEA(const char* sentence) {
       Serial.print("° Status=");
       Serial.println(rmc.status);
       
-      // Convertir RMC a u-blox NAV-PVT
       int length = 0;
       if (converter.convertRMCToPVT(rmc, ubloxBuffer, length)) {
         stats.ubloxFrames++;
@@ -169,7 +218,6 @@ void procesarNMEA(const char* sentence) {
       Serial.print(" VDOP=");
       Serial.println(gsa.vdop);
       
-      // Convertir GSA a u-blox NAV-PVT (DOP values)
       int length = 0;
       if (converter.convertGSAToPVT(gsa, ubloxBuffer, length)) {
         stats.ubloxFrames++;
@@ -178,28 +226,28 @@ void procesarNMEA(const char* sentence) {
     }
     
     default:
-      Serial.println("UNKNOWN sentence type");
       break;
   }
 }
 
 void enviarDatosAiNav() {
-  // Obtener datos PVT del convertidor
   NAVPVT pvt = converter.getPVTData();
   
-  // Si no hay fix válido, no enviar
+  // Only send if valid fix exists
   if (pvt.fixType == 0) {
     return;
   }
   
-  // Construir y enviar mensaje u-blox
   int length = 0;
   if (converter.buildNAVPVT(ubloxBuffer, length)) {
-    Serial2.write(ubloxBuffer, length);
+    // Check if Serial2 is available before writing
+    if (Serial2) {
+      Serial2.write(ubloxBuffer, length);
+    }
     
-    // Debug: mostrar datos que se envían
-    if ((stats.ubloxFrames % 10) == 0) {  // Mostrar cada 10 frames
-      Serial.print("ENVIANDO u-blox: Lat=");
+    // Debug output every 10 frames
+    if ((stats.ubloxFrames % 10) == 0) {
+      Serial.print("SENDING u-blox: Lat=");
       Serial.print(pvt.lat / 10000000.0, 6);
       Serial.print(" Lon=");
       Serial.print(pvt.lon / 10000000.0, 6);
@@ -207,4 +255,26 @@ void enviarDatosAiNav() {
       Serial.println(pvt.numSV);
     }
   }
+}
+
+void printDebugInfo() {
+  Serial.println("\n--- System Status ---");
+  Serial.print("Uptime: ");
+  Serial.print((millis() - setupTime) / 1000);
+  Serial.println("s");
+  Serial.print("GPS Initialized: ");
+  Serial.println(gpsInitialized ? "YES" : "NO");
+  Serial.print("iNav Initialized: ");
+  Serial.println(inavInitialized ? "YES" : "NO");
+  Serial.print("GPS Frames: ");
+  Serial.println(stats.gpsFrames);
+  Serial.print("u-blox Frames: ");
+  Serial.println(stats.ubloxFrames);
+  Serial.print("Errors: ");
+  Serial.println(stats.errors);
+  Serial.print("Serial Errors: ");
+  Serial.println(stats.serialErrors);
+  Serial.print("Loop Count: ");
+  Serial.println(stats.loopCount);
+  Serial.println("-------------------\n");
 }

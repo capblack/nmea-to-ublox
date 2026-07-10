@@ -4,6 +4,9 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
+// Enable this for development/debugging without hardware
+// #define DEBUG_MODE_NO_GPS 1
+
 // ===== AUTO-DETECT BOARD =====
 #ifdef ARDUINO_ESP32S3_DEV
   #define BOARD_NAME "ESP32-S3 Super Mini"
@@ -61,7 +64,7 @@
 // ===== Timing Configuration =====
 #define NMEA_TIMEOUT_MS    2000  // Timeout for NMEA sentence
 #define UPDATE_RATE_MS     100   // Output update rate (100ms = 10Hz)
-#define LOOP_DELAY_MS      10    // Main loop delay
+#define LOOP_DELAY_MS      1     // Main loop delay (reduced to 1ms for responsiveness)
 
 // ===== Debug Configuration =====
 #define ENABLE_DEBUG       1     // Enable serial debug output (0=disable)
@@ -86,6 +89,10 @@
 #define FEATURE_LED_STATUS 0     // Use LED for status indication (optional)
 #define STATUS_LED_PIN     -1    // GPIO pin for status LED (unused by default)
 
+// ===== Watchdog Configuration =====
+#define ENABLE_WATCHDOG    0     // Enable watchdog timer (optional, for stability)
+#define WATCHDOG_TIMEOUT_S 10    // Watchdog timeout in seconds
+
 // ===== Board Info for Debug =====
 #if ENABLE_DEBUG
   #define PRINT_BOARD_INFO() \
@@ -100,3 +107,4 @@
 #endif
 
 #endif // CONFIG_H
+
