@@ -1,73 +1,73 @@
 # NMEA to u-blox Translator
 
-Traductor de protocolo NMEA0183 a u-blox binario para ESP32-C3, diseñado para usar un GPS NMEA (AK721-JM) con iNav 9.1.
+NMEA0183-to-u-blox binary protocol translator for ESP32-C3/S3, designed to use NMEA GPS modules (AK721-JM, LD-29, etc.) with iNav 9.1.
 
-## Características
+## Features
 
-- **Parseo NMEA0183**: GGA, RMC, GSA
-- **Conversión a u-blox**: NAV-PVT, NAV-STATUS
-- **Hardware**: ESP32-C3
-- **GPS**: AK721-JM (NMEA0183)
-- **Destino**: iNav 9.1 Flight Controller
+- **NMEA0183 parsing**: GGA, RMC, GSA
+- **u-blox conversion**: NAV-PVT + legacy NAV messages for compatibility
+- **Hardware**: ESP32-C3 / ESP32-S3
+- **GPS input**: NMEA0183 modules
+- **Target**: iNav 9.1 Flight Controller
 
-## Estructura del Proyecto
+## Project Structure
 
 ```
 nmea-to-ublox/
 ├── src/
-│   ├── main.cpp              # Código principal
-│   ├── nmea_parser.h         # Parser NMEA0183
+│   ├── main.cpp              # Main code
+│   ├── nmea_parser.h         # NMEA0183 parser
 │   ├── nmea_parser.cpp
-│   ├── ublox_converter.h     # Convertidor a u-blox
+│   ├── ublox_converter.h     # u-blox converter
 │   ├── ublox_converter.cpp
-│   └── config.h              # Configuración
+│   └── config.h              # Configuration
 ├── docs/
-│   ├── WIRING.md             # Esquema de conexiones
-│   ├── INAV_SETUP.md         # Configuración iNav
-│   └── NMEA_PROTOCOL.md      # Referencia NMEA
-├── platformio.ini            # Configuración PlatformIO
+│   ├── WIRING.md             # Wiring guide
+│   ├── INAV_SETUP.md         # iNav setup
+│   └── NMEA_PROTOCOL.md      # NMEA reference
+├── platformio.ini            # PlatformIO config
 └── README.md
 ```
 
-## Requisitos
+## Requirements
 
-- ESP32-C3
-- GPS AK721-JM (NMEA0183)
+- ESP32-C3 or ESP32-S3
+- NMEA0183 GPS module
 - iNav 9.1
-- PlatformIO o Arduino IDE
+- PlatformIO or Arduino IDE
 
-## Instalación Rápida
+## Quick Install
 
-1. Clona el repositorio
-2. Configura PlatformIO (recomendado)
-3. Carga el firmware en ESP32-C3
-4. Conecta según el esquema en `docs/WIRING.md`
-5. Configura iNav según `docs/INAV_SETUP.md`
+1. Clone the repository
+2. Configure PlatformIO (recommended) or Arduino IDE
+3. Flash firmware to ESP32
+4. Wire devices using `docs/WIRING.md`
+5. Configure iNav using `docs/INAV_SETUP.md`
 
-## Protocolo
+## Protocol
 
-### Mensajes NMEA Soportados
+### Supported NMEA Messages
 
 - **GGA**: Global Positioning System Fix Data
 - **RMC**: Recommended Minimum Navigation Information
 - **GSA**: GPS DOP and Active Satellites
 
-### Mensajes u-blox Generados
+### Generated u-blox Messages
 
 - **NAV-PVT**: Navigation Position Velocity Time
-- **NAV-STATUS**: Navigation Status
+- **NAV-STATUS / NAV-POSLLH / NAV-SOL / NAV-DOP / NAV-SAT**: Compatibility stream for iNav
 
-## Documentación
+## Documentation
 
-Ver carpeta `docs/` para:
-- Esquema de conexiones completo
-- Guía de configuración iNav
-- Referencia de protocolos
+See the `docs/` folder for:
+- Full wiring guide
+- iNav setup guide
+- Protocol reference
 
-## Licencia
+## License
 
 MIT
 
-## Autor
+## Author
 
 capblack

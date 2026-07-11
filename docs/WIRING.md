@@ -1,134 +1,67 @@
-# Esquema de Conexiones - ESP32-C3 a GPS NMEA y iNav
+# Wiring Guide - ESP32, NMEA GPS, and iNav
 
-## ESP32-C3 Pinout
+## Core Connections
 
-```
-        ┌─────────────────────┐
-        │    ESP32-C3         │
-    USB │ ▲         GND ───┬──│── GND
-        │                  │  │
-    5V  │ ──────────────┬──┘  │
-        │               │     │
-        │ GPIO2 (TX)────┤─────│── Serial Debug (optional)
-        │ GPIO3 (RX)    │     │
-        │               │     │
-        │ GPIO20 (RX)───┼─────│── GPS NMEA Input
-        │ GPIO21 (TX)   │     │
-        │               │     │
-        │ GPIO9 (TX)────┼─────│── iNav u-blox Output
-        │ GPIO8 (RX)    │     │
-        │               │     │
-        │ GND ──────────┴─────│── Common GND
-        └─────────────────────┘
-```
+### GPS <-> ESP32
 
-## Conexiones Detalladas
+| GPS Pin | Signal | ESP32 Pin | Purpose |
+|---------|--------|-----------|---------|
+| VCC | 5V | 5V | Power |
+| TX | NMEA out | GPS RX pin | GPS data into ESP32 |
+| RX | NMEA in | GPS TX pin | Optional commands from ESP32 to GPS |
+| GND | Ground | GND | Common ground |
 
-### GPS AK721-JM (NMEA Input)
+### ESP32 <-> Flight Controller (iNav)
 
-| GPS Pin | Signal | ESP32-C3 | Función |
-|---------|--------|----------|---------|
-| 1 | VCC (5V) | 5V | Alimentación |
-| 2 | RX | GPIO21 | Envío de datos desde GPS |
-| 3 | TX | GPIO20 | Recepción de datos al GPS |
-| 4 | GND | GND | Tierra común |
+| FC Pin | Signal | ESP32 Pin | Purpose |
+|--------|--------|-----------|---------|
+| GPS RX | UART RX | iNav TX pin | UBX stream from ESP32 to FC |
+| GPS TX | UART TX | iNav RX pin | Optional requests from FC to ESP32 |
+| GND | Ground | GND | Common ground |
 
-**Velocidad:** 9600 baud (por defecto AK721-JM)
+## Default Pins
 
-### iNav 9.1 Flight Controller (u-blox Output)
+Check `nmea_to_ublox/src/config.h` for the active board profile and exact pins.
 
-| iNav Pin | Signal | ESP32-C3 | Función |
-|----------|--------|----------|---------|
-| UART RX | GPS_RX | GPIO9 | Envío de datos a iNav |
-| UART TX | GPS_TX | GPIO8 | Recepción desde iNav (opcional) |
-| GND | GND | GND | Tierra común |
+- **ESP32-S3 profile**
+  - GPS: RX=18, TX=17
+  - iNav: RX=15, TX=16
+- **ESP32-C3 profile**
+  - GPS: RX=20, TX=21
+  - iNav: RX=8, TX=9
 
-**Velocidad:** 115200 baud (típico para iNav)
+## Electrical Notes
 
-### Debug Serial (USB - Opcional)
+1. ESP32 logic is **3.3V**.
+2. If GPS TX outputs 5V TTL, use a level shifter or resistor divider into ESP32 RX.
+3. Keep UART wires short and routed away from high-current motor/ESC paths.
+4. Always share a common ground across GPS, ESP32, and FC.
 
-| Function | ESP32-C3 | Propósito |
-|----------|----------|----------|
-| TX (Debug) | GPIO2 | Ver logs y estadísticas |
-| USB | ESP32-C3 | Conexión a PC |
+## Bring-up Checklist
 
-## Diagrama Completo
+1. Flash firmware to ESP32.
+2. Open serial monitor at `115200`.
+3. Confirm startup logs and UART initialization.
+4. Confirm NMEA sentences are received.
+5. Confirm UBX stream is produced toward iNav.
+6. In iNav, set GPS protocol to `UBLOX` and matching baud.
 
-```
-    ┌────────────┐         ┌───────────────┐         ┌──────────────┐
-    │  GPS       │         │  ESP32-C3     │         │  iNav 9.1    │
-    │ AK721-JM   │         │  Translator   │         │ Flight Ctrl  │
-    │            │         │               │         │              │
-    │ TX ────────┼─────────┼─ GPIO20 (RX) │         │              │
-    │            │  9600   │               │         │              │
-    │ RX ────────┼─────────┼─ GPIO21 (TX) │         │              │
-    │            │  baud   │               │         │              │
-    │ 5V ────────┼─────────┼─ 5V          │         │              │
-    │            │         │               │         │              │
-    │ GND ───────┼─────────┼─ GND         │         │              │
-    └────────────┘         │               │         │              │
-                           │               │         │              │
-                           │ GPIO9 (TX) ───┼─────────┼─ GPS RX      │
-                           │               │ 115200  │              │
-                           │ GPIO8 (RX) ───┼─────────┼─ GPS TX      │
-                           │               │  baud   │              │
-                           │ GND ──────────┼─────────┼─ GND        │
-                           │               │         │              │
-    ┌─ USB (PC) ────────── │               │         └──────────────┘
-    │ DEBUG SERIAL         │               │
-    │ GPIO2 (TX)          │               │
-    └────────────────────── │               │
-                           └───────────────┘
-```
+## Troubleshooting
 
-## Notas Importantes
+### No NMEA input
 
-1. **Voltaje:** ESP32-C3 es de 3.3V. Si el GPS envía 5V, usa un divisor de voltaje en GPIO20:
-   ```
-   GPS TX (5V) ──┬─── 10kΩ ──┬─── GND
-                 │            │
-                 └─ 20kΩ ──┬──┴─ GPIO20
-                          │
-   ```
+- Verify GPS TX -> ESP32 GPS RX wiring.
+- Verify GPS module power.
+- Verify module baud rate.
 
-2. **GND Común:** Asegúrate que GPS, ESP32-C3 e iNav compartan la misma tierra.
+### iNav does not detect GPS
 
-3. **Capacitores:** Añade capacitores de desacople de 100nF cerca de la alimentación de ESP32-C3.
+- Verify ESP32 iNav TX -> FC GPS RX.
+- Verify iNav UART port and baud rate.
+- Confirm UBX protocol is selected in iNav.
 
-4. **Cables:** Usa cables cortos y de buena calidad, especialmente UART.
+### Intermittent data / checksum errors
 
-## Configuración en Arduino IDE
-
-```
-Board: ESP32-C3-DevKitM-1
-Upload Speed: 460800
-CPU Frequency: 160 MHz
-Flash Mode: DIO
-Flash Size: 4MB
-Partition Scheme: Default
-```
-
-## Verificación
-
-1. Sube el código a ESP32-C3
-2. Abre Serial Monitor (115200 baud)
-3. Deberías ver "NMEA to u-blox Translator"
-4. Espera a que el GPS adquiera señal (puede tomar minutos)
-5. Verás mensajes GGA, RMC, GSA recibidos
-6. Los datos se envían a iNav por GPIO9 (TX)
-
-## Solución de Problemas
-
-**No se reciben datos NMEA:**
-- Verifica conexión GPIO20 (RX)
-- Confirma velocidad 9600 baud
-- Prueba con Serial Monitor en GPS_RX para verificar datos
-
-**iNav no recibe datos u-blox:**
-- Verifica conexión GPIO9 (TX) a iNav
-- Confirma que iNav está configurado para protocolo GPS_UBLOX
-- Verifica voltaje: 3.3V en GPIO9
-
-**Errores de checksum NMEA:**
-- Verifica conexión física
-- Reduce longitud de cables UART
+- Improve grounding and cable routing.
+- Shorten UART wires.
+- Verify stable power rails for GPS and ESP32.

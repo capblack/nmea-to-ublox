@@ -1,100 +1,60 @@
 # Quick Start Guide
 
-## Instalación Rápida (5 minutos)
+## 5-Minute Setup
 
-### 1. Hardware Necesario
+### 1. Required Hardware
 
-- ESP32-C3 DevKit
-- GPS NMEA0183 (AK721-JM)
-- Cable USB para ESP32-C3
-- Jumpers/cables para conexiones
-- iNav 9.1 Flight Controller
+- ESP32-C3 or ESP32-S3
+- NMEA GPS module
+- USB cable
+- Jumper wires
+- Flight controller running iNav 9.1
 
-### 2. Conexiones
+### 2. Wiring
 
-Sigue el esquema en `docs/WIRING.md`:
+Use `docs/WIRING.md` and your board profile in `src/config.h`.
 
-```
-GPS TX    → ESP32-C3 GPIO20 (RX)
-GPS RX    → ESP32-C3 GPIO21 (TX)
-GPS 5V    → ESP32-C3 5V
-GPS GND   → ESP32-C3 GND
-
-ESP32-C3 GPIO9 (TX)  → iNav GPS RX
-ESP32-C3 GPIO8 (RX)  → iNav GPS TX
-ESP32-C3 GND        → iNav GND
-```
-
-### 3. Instalar Arduino IDE
-
-1. Descarga Arduino IDE: https://www.arduino.cc/en/software
-2. Instala el board ESP32: https://github.com/espressif/arduino-esp32
-3. Selecciona Board: **ESP32-C3-DevKitM-1**
-
-### 4. Cargar el Código
+### 3. Flash Firmware
 
 ```bash
-# Clona el repositorio
 git clone https://github.com/capblack/nmea-to-ublox
 cd nmea-to-ublox
-
-# Abre Arduino IDE
-# File > Open > nmea_to_ublox.ino
-# Selecciona tu puerto COM
-# Click Upload
 ```
 
-### 5. Verificar
+Open `nmea_to_ublox.ino` in Arduino IDE, select the correct ESP32 board and COM port, then upload.
 
-1. Abre Serial Monitor (115200 baud)
-2. Deberías ver:
-   ```
-   === NMEA to u-blox Translator ===
-   Starting up...
-   UART initialized...
-   Waiting for GPS data...
-   ```
+### 4. Verify Serial Output
 
-3. Espera a que el GPS adquiera satélites (2-5 minutos)
-4. Verás mensajes como:
-   ```
-   GGA: Lat=40.123456 Lon=-73.654321 Alt=125.5m Sats=12 Fix=1
-   ```
+Open Serial Monitor at `115200` and confirm startup logs, then verify NMEA input and UBX output activity.
 
-### 6. Configurar iNav
+### 5. Configure iNav
 
-1. Abre Betaflight Configurator
-2. Ve a Configuration → GPS
-3. Selecciona:
-   - GPS Protocol: **UBLOX**
-   - Baudrate: **115200**
-4. Guarda la configuración
+In iNav Configurator:
+
+- GPS protocol: `UBLOX`
+- GPS baud: `115200`
+- UART: the one wired to ESP32 iNav TX/RX
 
 ## Troubleshooting
 
-### "No veo datos NMEA"
-- Verifica conexión GPIO20 (RX del GPS)
-- Asegúrate que el GPS está encendido
-- Comprueba que tiene vista al cielo
+### No NMEA data
 
-### "GPS conectado pero sin fix"
-- El GPS necesita tiempo para adquirir satélites
-- Coloca antena en lugar abierto
-- Aleja de interferencias electromagnéticas
+- Check GPS TX/RX wiring
+- Check GPS power
+- Check GPS baud rate
 
-### "iNav no recibe datos"
-- Verifica que iNav está configurado para GPS_UBLOX
-- Comprueba voltaje en GPIO9: debe ser 3.3V
-- Asegúrate que el puerto UART en iNav es correcto
+### GPS detected but no fix
 
-## Próximos Pasos
+- Wait 2-5 minutes outdoors
+- Verify antenna placement and connection
 
-1. Lee `docs/INAV_SETUP.md` para configuración completa
-2. Lee `docs/WIRING.md` para esquema detallado
-3. Revisa `docs/NMEA_PROTOCOL.md` para entender los datos
+### iNav does not receive data
 
-## Soporte
+- Verify FC GPS RX is connected to ESP32 iNav TX
+- Confirm iNav UART and protocol settings
 
-- Issues: https://github.com/capblack/nmea-to-ublox/issues
-- iNav Wiki: https://github.com/iNavFlight/inav/wiki
-- u-blox Docs: https://www.u-blox.com
+## Next
+
+- `docs/INAV_SETUP.md` for full iNav configuration
+- `docs/WIRING.md` for complete wiring details
+- `docs/NMEA_PROTOCOL.md` for message reference
