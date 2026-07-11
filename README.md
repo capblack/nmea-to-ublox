@@ -71,6 +71,7 @@ MIT
 ## Support
 
 If you want to support this project, use the **Sponsor** button on GitHub (PayPal currently configured).
+You can also donate directly via PayPal: **https://paypal.me/mdm535**
 
 ## Author
 
