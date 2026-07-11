@@ -68,6 +68,10 @@ See the `docs/` folder for:
 
 MIT
 
+## Support
+
+If you want to support this project, use the **Sponsor** button on GitHub (PayPal currently configured).
+
 ## Author
 
 capblack
